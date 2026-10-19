@@ -35,15 +35,12 @@ df = df[
     (df["first_week_audi"] > 0) & (df["first_scrn"] > 0) & (df["total_audi"] > 0)
 ]
 
-# 상용로그 취하기 및 롱런 지수 계산
 df["first_scrn_log"] = df["first_scrn"].apply(math.log10)
 df["total_audi_log"] = df["total_audi"].apply(math.log10)
 df["long_run_index"] = df["total_audi"] / df["first_week_audi"]
 
-# 전체 편수와 분석 대상 편수 표시
 st.write(f"전체 영화: **{len(raw_df)}**편 | 분석 대상 영화: **{len(df)}**편")
 
-# 속성 매핑 사전
 feature_dict = {
     "스크린 수 (상용로그)": "first_scrn_log",
     "누적 관객 (상용로그)": "total_audi_log",
@@ -82,10 +79,8 @@ X_scaled = scaler.fit_transform(df[selected_feature_cols])
 kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
 df["cluster_raw"] = kmeans.fit_predict(X_scaled)
 
-# 묶음 표시 기호 (㉮ ~ ㉴)
 circle_labels = ["㉮", "㉯", "㉰", "㉱", "㉲", "㉳", "㉴"]
 
-# 누적 관객 평균이 큰 순서대로 ㉮, ㉯, ㉰... 라벨 부여
 cluster_means = df.groupby("cluster_raw")["total_audi"].mean()
 sorted_clusters = cluster_means.sort_values(ascending=False).index.tolist()
 
@@ -117,10 +112,7 @@ with col2:
       "2D 세로축 속성", options=list(feature_dict.keys()), index=1, key="y_2d"
   )
 
-labels_2d_dict = {
-    feature_dict[x_2d]: x_2d,
-    feature_dict[y_2d]: y_2d,
-}
+labels_2d_dict = {feature_dict[x_2d]: x_2d, feature_dict[y_2d]: y_2d}
 
 fig_2d = px.scatter(
     df,
@@ -140,4 +132,34 @@ st.subheader("🎲 3차원 산점도")
 c1, c2, c3 = st.columns(3)
 with c1:
   x_3d = st.selectbox(
-      "3D X축 속성", options=list(feature_dict.keys()), index=0
+      "3D X축 속성", options=list(feature_dict.keys()), index=0, key="x_3d"
+  )
+with c2:
+  y_3d = st.selectbox(
+      "3D Y축 속성", options=list(feature_dict.keys()), index=1, key="y_3d"
+  )
+with c3:
+  z_3d = st.selectbox(
+      "3D Z축 속성", options=list(feature_dict.keys()), index=2, key="z_3d"
+  )
+
+labels_3d_dict = {
+    feature_dict[x_3d]: x_3d,
+    feature_dict[y_3d]: y_3d,
+    feature_dict[z_3d]: z_3d,
+}
+
+fig_3d = px.scatter_3d(
+    df,
+    x=feature_dict[x_3d],
+    y=feature_dict[y_3d],
+    z=feature_dict[z_3d],
+    color="묶음",
+    hover_name="movieNm",
+    labels=labels_3d_dict,
+    category_orders={"묶음": active_labels},
+    title=f"3D 산점도 ({x_3d} x {y_3d} x {z_3d})",
+)
+st.plotly_chart(fig_3d, use_container_width=True)
+
+# 9. 묶음
