@@ -7,11 +7,11 @@ from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import StandardScaler
 import streamlit as st
 
-# 1. 페이지 제목 및 브라우저 탭 아이콘/제목 설정[cite: 1]
+# 1. 페이지 제목 및 아이콘 설정
 st.set_page_config(page_title="영화 유형 나누기", page_icon="🎬", layout="wide")
 st.title("🎬 영화 유형 나누기")
 
-# 2. 데이터 로드[cite: 1]
+# 2. 데이터 로드
 DATA_URL = "https://raw.githubusercontent.com/it-teacher-go/data-share-/main/kobis_movies.csv"
 
 
@@ -22,8 +22,7 @@ def load_data():
 
 raw_df = load_data()
 
-# 3. 데이터 전처리 및 파생 속성 생성[cite: 1]
-# 필수 속성 결측치 제거 및 첫 주 관객/스크린/누적관객이 0인 영화 제외[cite: 1]
+# 3. 데이터 전처리 및 파생 속성 생성
 req_cols = [
     "first_scrn",
     "first_week_audi",
@@ -36,12 +35,12 @@ df = df[
     (df["first_week_audi"] > 0) & (df["first_scrn"] > 0) & (df["total_audi"] > 0)
 ]
 
-# 상용로그 취하기 및 롱런 지수 계산[cite: 1]
+# 상용로그 취하기 및 롱런 지수 계산
 df["first_scrn_log"] = df["first_scrn"].apply(math.log10)
 df["total_audi_log"] = df["total_audi"].apply(math.log10)
 df["long_run_index"] = df["total_audi"] / df["first_week_audi"]
 
-# 전체 편수와 분석 대상(묶은) 편수 한 줄로 표시[cite: 1]
+# 전체 편수와 분석 대상 편수 표시
 st.write(f"전체 영화: **{len(raw_df)}**편 | 분석 대상 영화: **{len(df)}**편")
 
 # 속성 매핑 사전
@@ -52,7 +51,7 @@ feature_dict = {
     "롱런 지수": "long_run_index",
 }
 
-# 4. 군집화 속성 및 묶음 수(k) 선택 설정[cite: 1, 4]
+# 4. 군집화 설정 (속성 선택 및 묶음 수 k 조절)
 st.markdown("---")
 st.subheader("⚙️ 군집화 설정")
 
@@ -76,17 +75,17 @@ if len(selected_feature_names) < 2:
 
 selected_feature_cols = [feature_dict[name] for name in selected_feature_names]
 
-# 5. 데이터 표준화 및 K-평균 군집화 (선택한 속성 기준)[cite: 1, 4]
+# 5. 데이터 표준화 및 K-평균 군집화
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(df[selected_feature_cols])
 
 kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
 df["cluster_raw"] = kmeans.fit_predict(X_scaled)
 
-# 묶음 표시 기호 (㉮ ~ ㉴)[cite: 1]
+# 묶음 표시 기호 (㉮ ~ ㉴)
 circle_labels = ["㉮", "㉯", "㉰", "㉱", "㉲", "㉳", "㉴"]
 
-# 누적 관객 평균이 큰 순서대로 ㉮, ㉯, ㉰... 부여[cite: 1]
+# 누적 관객 평균이 큰 순서대로 ㉮, ㉯, ㉰... 라벨 부여
 cluster_means = df.groupby("cluster_raw")["total_audi"].mean()
 sorted_clusters = cluster_means.sort_values(ascending=False).index.tolist()
 
@@ -105,7 +104,7 @@ st.info(
     " (점수는 -1에서 1 사이이고 1에 가까울수록 묶음이 뚜렷하다는 뜻입니다.)"
 )
 
-# 7. 2차원 산점도[cite: 1]
+# 7. 2차원 산점도
 st.markdown("---")
 st.subheader("📊 2차원 산점도")
 col1, col2 = st.columns(2)
@@ -118,10 +117,27 @@ with col2:
       "2D 세로축 속성", options=list(feature_dict.keys()), index=1, key="y_2d"
   )
 
+labels_2d_dict = {
+    feature_dict[x_2d]: x_2d,
+    feature_dict[y_2d]: y_2d,
+}
+
 fig_2d = px.scatter(
     df,
     x=feature_dict[x_2d],
     y=feature_dict[y_2d],
     color="묶음",
     hover_name="movieNm",
-    labels={feature_dict[x_2d]: x_2d, feature_
+    labels=labels_2d_dict,
+    category_orders={"묶음": active_labels},
+    title=f"2D 산점도 ({x_2d} vs {y_2d})",
+)
+st.plotly_chart(fig_2d, use_container_width=True)
+
+# 8. 3차원 산점도
+st.markdown("---")
+st.subheader("🎲 3차원 산점도")
+c1, c2, c3 = st.columns(3)
+with c1:
+  x_3d = st.selectbox(
+      "3D X축 속성", options=list(feature_dict.keys()), index=0
